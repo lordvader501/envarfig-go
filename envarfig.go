@@ -41,6 +41,7 @@ func GetEnvVar[T any](envConfig *T, options ...option) error {
 		// load the env file
 		err = loadEnvFile(settings.AutoLoadEnv, settings.EnvFiles)
 		if err != nil {
+			err = errInvalidEnvPathArgs
 			return
 		}
 		// parse the env var

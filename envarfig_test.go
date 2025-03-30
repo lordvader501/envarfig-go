@@ -1,3 +1,5 @@
+//go:build integration
+
 package envarfig
 
 import (
@@ -14,6 +16,9 @@ type MockGodotenv struct {
 }
 
 func (m *MockGodotenv) Load(filenames ...string) error {
+	if len(filenames) == 0 {
+		return m.Called().Error(0)
+	}
 	args := m.Called(filenames)
 	return args.Error(0)
 }
@@ -148,6 +153,7 @@ func TestGetEnvVar(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "localhost", config.Host)
 		assert.Equal(t, 8080, config.Port)
+		mockGodotenv.AssertExpectations(t)
 
 	})
 	t.Run("Test with multiple env file", func(t *testing.T) {
@@ -162,6 +168,7 @@ func TestGetEnvVar(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "localhost", config.Host)
 		assert.Equal(t, 8080, config.Port)
+		mockGodotenv.AssertExpectations(t)
 	})
 	t.Run("Test invalid env file load", func(t *testing.T) {
 		setup()
@@ -175,6 +182,7 @@ func TestGetEnvVar(t *testing.T) {
 		)
 		assert.Error(t, err)
 		assert.ErrorIs(t, err, errInvalidEnvPathArgs)
+		mockGodotenv.AssertExpectations(t)
 
 	})
 	t.Run("Test different supported datatypes", func(t *testing.T) {
@@ -194,6 +202,7 @@ func TestGetEnvVar(t *testing.T) {
 		assert.Equal(t, 24, dataTypesConfig.Intval)
 		assert.Equal(t, true, dataTypesConfig.Boolval)
 		assert.Equal(t, "HELLO", dataTypesConfig.Stringval)
+		mockGodotenv.AssertExpectations(t)
 	})
 	t.Run("Test different supported datatypes for errors", func(t *testing.T) {
 		setup()
@@ -205,8 +214,8 @@ func TestGetEnvVar(t *testing.T) {
 		t.Setenv("BOOLVAL", invalidBool)
 		var dataTypesConfig DataTypesConfig
 		err := GetEnvVar(&dataTypesConfig)
-		fmt.Println(err.Error())
 		assert.Error(t, err)
 		assert.Equal(t, fmt.Sprintf("error parsing env var BOOLVAL: strconv.ParseBool: parsing \"%s\": invalid syntax", invalidBool), err.Error())
+		mockGodotenv.AssertExpectations(t)
 	})
 }

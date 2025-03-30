@@ -12,4 +12,6 @@ var (
 	errTagNotFound = errors.New("tag not found")
 	// Error if env file is invalid type
 	errInvalidEnvPathArgs = errors.New("invalid env path args")
+	// Error if autoload is false and file path is not nil
+	errAutoLoadFalseFilePath = errors.New("autoload should not be false when file path is not nil")
 )

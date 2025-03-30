@@ -15,14 +15,17 @@ args:
   - useEnvFile: a boolean value to determine if the env file should be used(uses godotenv)
   - filePath: the file path of the env variables or list of paths
 */
-func loadEnvFile(AutoLoadEnv bool, filePath []string) error {
-	if AutoLoadEnv && filePath == nil {
+func loadEnvFile(autoLoadEnv bool, filePath []string) error {
+	if autoLoadEnv && filePath == nil {
 		// if filePath is nil, load the default env file
 		// this will load the .env file in the current directory
 		return envLoader()
 	}
-	if filePath != nil {
+	if autoLoadEnv && filePath != nil {
 		return envLoader(filePath...)
+	}
+	if !autoLoadEnv && filePath != nil {
+		return errAutoLoadFalseFilePath
 	}
 	return nil
 

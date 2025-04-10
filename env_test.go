@@ -21,7 +21,7 @@ func (m *MockEnv) Load(filenames ...string) error {
 	return args.Error(0)
 }
 
-func TestLoadEnv(t *testing.T) {
+func TestLoadGoDotEnv(t *testing.T) {
 	originalEnvLoader := envLoader // Store the original envLoader
 	defer func() {
 		envLoader = originalEnvLoader // Restore the original envLoader after the test

@@ -5,10 +5,11 @@
 ## Features
 
 - Load environment variables into Go structs.
-- Support for default values and required fields(to be added in future).
-- Type-safe parsing for common data types (e.g., `int`, `string`, `bool`).
+- Support for default values and required fields.
+- Type-safe parsing for common data types (e.g., `int`, `string`, `bool`, `uint`).
 - Optional `.env` file loading using `godotenv`.
 - Customizable settings for environment variable loading.
+- Error handling for invalid or missing environment variables.
 
 ## Installation
 
@@ -26,23 +27,23 @@ go get github.com/lordvader501/envarfig-go
 package main
 
 import (
-  "fmt"
-  "github.com/lordvader501/envarfig-go"
+    "fmt"
+    "github.com/lordvader501/envarfig-go"
 )
 
 type Config struct {
-  Host string `env:"HOST"`
-  Port int    `env:"PORT"`
+    Host string `env:"HOST"`
+    Port int    `env:"PORT"`
 }
 
 func main() {
-  var config Config
-  err := envarfig.GetEnvVar(&config)
-  if err != nil {
-    fmt.Println("Error:", err)
-    return
-  }
-  fmt.Printf("Host: %s, Port: %d\n", config.Host, config.Port)
+    var config Config
+    err := envarfig.LoadEnv(&config)
+    if err != nil {
+        fmt.Println("Error:", err)
+        return
+    }
+    fmt.Printf("Host: %s, Port: %d\n", config.Host, config.Port)
 }
 ```
 
@@ -51,7 +52,7 @@ func main() {
 You can load environment variables from `.env` files:
 
 ```go
-err := envarfig.GetEnvVar(&config, envarfig.WithEnvFiles(".env"))
+err := envarfig.LoadEnv(&config, envarfig.WithEnvFiles(".env"))
 ```
 
 ### Custom Settings
@@ -59,15 +60,32 @@ err := envarfig.GetEnvVar(&config, envarfig.WithEnvFiles(".env"))
 You can disable automatic `.env` file loading:
 
 ```go
-err := envarfig.GetEnvVar(&config, envarfig.WithAutoLoadEnv(false))
+err := envarfig.LoadEnv(&config, envarfig.WithAutoLoadEnv(false))
+```
+
+### Advanced Example with Default and Required Fields
+
+```go
+type Config struct {
+    Host string `env:"HOST,default=localhost,required"`
+    Port int    `env:"PORT,default=8080"`
+}
+
+var config Config
+
+err := envarfig.LoadEnv(&config)
+if err != nil {
+    fmt.Println("Error:", err)
+}
+fmt.Printf("Host: %s, Port: %d\n", config.Host, config.Port)
 ```
 
 ## API
 
-### `GetEnvVar`
+### `LoadEnv`
 
 ```go
-func GetEnvVar[T any](envConfig *T, options ...option) error
+func LoadEnv[T any](envConfig *T, options ...option) error
 ```
 
 - **`envConfig`**: A pointer to a struct where environment variables will be loaded.
@@ -76,14 +94,14 @@ func GetEnvVar[T any](envConfig *T, options ...option) error
 ### Tag Syntax
 
 - **`env`**: Specifies the environment variable name.
-- **`default`**(to be added in future): Specifies a default value if the environment variable is not set.
-- **`required`**(to be added in future): Marks the environment variable as required.
+- **`default`**: Specifies a default value if the environment variable is not set.
+- **`required`**: Marks the environment variable as required.
 
 Example:
 
 ```go
 type Config struct {
-  Host string `env:"HOST,default=localhost,required"`
+    Host string `env:"HOST,default=localhost,required"`
 }
 ```
 
@@ -93,6 +111,18 @@ Run the tests using:
 
 ```bash
 go test ./... -v
+```
+
+### Running Unit Tests
+
+```bash
+go test -tags=unit ./... -v
+```
+
+### Running Integration Tests
+
+```bash
+go test -tags=integration ./... -v
 ```
 
 ## Contributing

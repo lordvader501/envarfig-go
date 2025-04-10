@@ -23,7 +23,7 @@ func (m *MockGodotenv) Load(filenames ...string) error {
 	return args.Error(0)
 }
 
-func TestGetEnvVar(t *testing.T) {
+func TestLoadEnv(t *testing.T) {
 	// Test with a valid struct and env variables
 	originalEnvLoader := envLoader // Store the original envLoader
 	defer func() {
@@ -47,10 +47,8 @@ func TestGetEnvVar(t *testing.T) {
 	}
 
 	resetCache := func() {
-		once = sync.Once{} // Reset the once variable to allow re-execution of the test
-		cachedConfig = nil // Reset the cached config to allow re-execution of the test
-		t.Setenv("HOST", "")
-		t.Setenv("PORT", "")
+		once = sync.Once{}               // Reset the once variable to allow re-execution of the test
+		cachedConfig = nil               // Reset the cached config to allow re-execution of the test
 		mockGodotenv.ExpectedCalls = nil // Reset the expected calls to the mock
 	}
 
@@ -61,7 +59,7 @@ func TestGetEnvVar(t *testing.T) {
 		t.Cleanup(resetCache)
 
 		var config Config
-		err := GetEnvVar(&config)
+		err := LoadEnv(&config)
 		assert.NoError(t, err)
 		assert.Equal(t, "localhost", config.Host)
 		assert.Equal(t, 8080, config.Port)
@@ -81,19 +79,19 @@ func TestGetEnvVar(t *testing.T) {
 		}
 		t.Setenv("HOST", "localhost")
 		var configNotTag NoTagConfig
-		err := GetEnvVar(&configNotTag)
+		err := LoadEnv(&configNotTag)
 		assert.Error(t, err)
 		assert.ErrorIs(t, err, errTagNotFound)
 		resetCache()
 		setup()
 		var configInvalidTagName InvalidTagNaeConfig
-		err = GetEnvVar(&configInvalidTagName)
+		err = LoadEnv(&configInvalidTagName)
 		assert.Error(t, err)
 		assert.ErrorIs(t, err, errTagNotFound)
 		resetCache()
 		setup()
 		var configEmptyTag EmptyTagConfig
-		err = GetEnvVar(&configEmptyTag)
+		err = LoadEnv(&configEmptyTag)
 		assert.Error(t, err)
 		assert.ErrorIs(t, err, errTagNotFound)
 	})
@@ -102,7 +100,7 @@ func TestGetEnvVar(t *testing.T) {
 		setup()
 		t.Cleanup(resetCache)
 		var nilConfig *Config
-		err := GetEnvVar(nilConfig)
+		err := LoadEnv(nilConfig)
 		assert.Error(t, err)
 		assert.Equal(t, errNilConfig, err)
 	})
@@ -110,7 +108,7 @@ func TestGetEnvVar(t *testing.T) {
 		setup()
 		t.Cleanup(resetCache)
 		var invalidConfig *int
-		err := GetEnvVar(&invalidConfig)
+		err := LoadEnv(&invalidConfig)
 		assert.Error(t, err)
 		assert.ErrorIs(t, err, errConfigNotPtrToStruct)
 	})
@@ -122,9 +120,9 @@ func TestGetEnvVar(t *testing.T) {
 		t.Setenv("PORT", "invalid")
 		var newConf Config
 
-		err := GetEnvVar(&newConf)
+		err := LoadEnv(&newConf)
 		assert.Error(t, err)
-		assert.Equal(t, "failed to convert PORT to int: strconv.Atoi: parsing \"invalid\": invalid syntax", err.Error())
+		assert.Equal(t, "failed to convert PORT to int: strconv.ParseInt: parsing \"invalid\": invalid syntax", err.Error())
 	})
 
 	t.Run("Test without godotenv", func(t *testing.T) {
@@ -133,7 +131,7 @@ func TestGetEnvVar(t *testing.T) {
 		// Set environment variables for testing
 
 		var config Config
-		err := GetEnvVar(
+		err := LoadEnv(
 			&config,
 			WithAutoLoadEnv(false),
 		)
@@ -146,7 +144,7 @@ func TestGetEnvVar(t *testing.T) {
 		t.Cleanup(resetCache)
 
 		var config Config
-		err := GetEnvVar(
+		err := LoadEnv(
 			&config,
 			WithEnvFiles("example.env"),
 		)
@@ -161,7 +159,7 @@ func TestGetEnvVar(t *testing.T) {
 		t.Cleanup(resetCache)
 
 		var config Config
-		err := GetEnvVar(
+		err := LoadEnv(
 			&config,
 			WithEnvFiles("example.env", "example2.env"),
 		)
@@ -176,7 +174,7 @@ func TestGetEnvVar(t *testing.T) {
 		mockGodotenv.ExpectedCalls = nil
 		mockGodotenv.On("Load", mock.AnythingOfType("[]string")).Return(errInvalidEnvPathArgs)
 		var config Config
-		err := GetEnvVar(
+		err := LoadEnv(
 			&config,
 			WithEnvFiles("invalid.env"),
 		)
@@ -185,6 +183,7 @@ func TestGetEnvVar(t *testing.T) {
 		mockGodotenv.AssertExpectations(t)
 
 	})
+	// testing for different supported datatypes
 	t.Run("Test different supported datatypes", func(t *testing.T) {
 		setup()
 		t.Cleanup(resetCache)
@@ -197,7 +196,7 @@ func TestGetEnvVar(t *testing.T) {
 		t.Setenv("BOOLVAL", "TRUE")
 		t.Setenv("STRINGVAL", "HELLO")
 		var dataTypesConfig DataTypesConfig
-		err := GetEnvVar(&dataTypesConfig)
+		err := LoadEnv(&dataTypesConfig)
 		assert.NoError(t, err)
 		assert.Equal(t, 24, dataTypesConfig.Intval)
 		assert.Equal(t, true, dataTypesConfig.Boolval)
@@ -213,9 +212,231 @@ func TestGetEnvVar(t *testing.T) {
 		invalidBool := "TRUEasdf"
 		t.Setenv("BOOLVAL", invalidBool)
 		var dataTypesConfig DataTypesConfig
-		err := GetEnvVar(&dataTypesConfig)
+		err := LoadEnv(&dataTypesConfig)
 		assert.Error(t, err)
 		assert.Equal(t, fmt.Sprintf("error parsing env var BOOLVAL: strconv.ParseBool: parsing \"%s\": invalid syntax", invalidBool), err.Error())
+		mockGodotenv.AssertExpectations(t)
+	})
+	t.Run("Test unint datatypes", func(t *testing.T) {
+		setup()
+		t.Cleanup(resetCache)
+		type DataTypesConfig struct {
+			Uintval  uint  `env:"UINTVAL"`
+			Uint8val uint8 `env:"UINT8VAL"`
+		}
+		t.Setenv("UINTVAL", "24")
+		t.Setenv("UINT8VAL", "24")
+		var dataTypesConfig DataTypesConfig
+		err := LoadEnv(&dataTypesConfig)
+		assert.NoError(t, err)
+		assert.Equal(t, uint(24), dataTypesConfig.Uintval)
+		assert.Equal(t, uint8(24), dataTypesConfig.Uint8val)
+		mockGodotenv.AssertExpectations(t)
+	})
+	t.Run("Test unint datatypes for errors", func(t *testing.T) {
+		setup()
+		t.Cleanup(resetCache)
+		type DataTypesConfig struct {
+			Uintval  uint  `env:"UINTVAL"`
+			Uint8val uint8 `env:"UINT8VAL"`
+		}
+		invalidUint := "24asdf"
+		t.Setenv("UINTVAL", invalidUint)
+		t.Setenv("UINT8VAL", invalidUint)
+		var dataTypesConfig DataTypesConfig
+		err := LoadEnv(&dataTypesConfig)
+		assert.Error(t, err)
+		assert.Equal(t, fmt.Sprintf("failed to convert UINTVAL to uint: strconv.ParseUint: parsing \"%s\": invalid syntax", invalidUint), err.Error())
+		mockGodotenv.AssertExpectations(t)
+	})
+	// testing for required env var with different cases
+	t.Run("Test with required env var", func(t *testing.T) {
+		setup()
+		t.Cleanup(resetCache)
+		type RequiredConfig struct {
+			RequiredField string `env:"REQUIRED_FIELD,required"`
+		}
+		t.Setenv("REQUIRED_FIELD", "required_value")
+		var config RequiredConfig
+		err := LoadEnv(&config)
+		assert.NoError(t, err)
+		assert.Equal(t, "required_value", config.RequiredField)
+		mockGodotenv.AssertExpectations(t)
+	})
+	t.Run("Test with required env var not set", func(t *testing.T) {
+		setup()
+		t.Cleanup(resetCache)
+		type RequiredConfig struct {
+			RequiredField string `env:"REQUIRED_FIELD,required"`
+		}
+		var config RequiredConfig
+		err := LoadEnv(&config)
+		assert.Error(t, err)
+		assert.Equal(t, "required environment variable REQUIRED_FIELD not found", err.Error())
+		mockGodotenv.AssertExpectations(t)
+	})
+	t.Run("Test with required env var set to false", func(t *testing.T) {
+		setup()
+		t.Cleanup(resetCache)
+		type RequiredConfig struct {
+			RequiredField string `env:"REQUIRED_FIELD,required=false"`
+		}
+		t.Setenv("REQUIRED_FIELD", "required_value")
+		var config RequiredConfig
+		err := LoadEnv(&config)
+		assert.NoError(t, err)
+		assert.Equal(t, "required_value", config.RequiredField)
+		mockGodotenv.AssertExpectations(t)
+	})
+	t.Run("Test with required env var set to true", func(t *testing.T) {
+		setup()
+		t.Cleanup(resetCache)
+		type RequiredConfig struct {
+			RequiredField string `env:"REQUIRED_FIELD,required=true"`
+		}
+		t.Setenv("REQUIRED_FIELD", "required_value")
+		var config RequiredConfig
+		err := LoadEnv(&config)
+		assert.NoError(t, err)
+		assert.Equal(t, "required_value", config.RequiredField)
+		mockGodotenv.AssertExpectations(t)
+	})
+	// testing for default env var with different cases
+	t.Run("Test with default env var", func(t *testing.T) {
+		setup()
+		t.Cleanup(resetCache)
+		type DefaultConfig struct {
+			DefaultField string `env:"DEFAULT_FIELD,default=default_value"`
+		}
+		var config DefaultConfig
+		err := LoadEnv(&config)
+		assert.NoError(t, err)
+		assert.Equal(t, "default_value", config.DefaultField)
+		mockGodotenv.AssertExpectations(t)
+	})
+	t.Run("Test with default env var set to empty", func(t *testing.T) {
+		setup()
+		t.Cleanup(resetCache)
+		type DefaultConfig struct {
+			DefaultField string `env:"DEFAULT_FIELD,default="`
+		}
+		t.Setenv("DEFAULT_FIELD", "default_value")
+		var config DefaultConfig
+		err := LoadEnv(&config)
+		assert.NoError(t, err)
+		assert.Equal(t, "default_value", config.DefaultField)
+		mockGodotenv.AssertExpectations(t)
+	})
+	t.Run("Test with default env var set to empty string", func(t *testing.T) {
+		setup()
+		t.Cleanup(resetCache)
+		type DefaultConfig struct {
+			DefaultField string `env:"DEFAULT_FIELD,default=\"\""`
+		}
+		var config DefaultConfig
+		err := LoadEnv(&config)
+		assert.NoError(t, err)
+		assert.Equal(t, "", config.DefaultField)
+		mockGodotenv.AssertExpectations(t)
+	})
+	t.Run("Test with default env var set to empty string with quotes", func(t *testing.T) {
+		setup()
+		t.Cleanup(resetCache)
+		type DefaultConfig struct {
+			DefaultField string `env:"DEFAULT_FIELD,default=''"`
+		}
+		var config DefaultConfig
+		err := LoadEnv(&config)
+		assert.NoError(t, err)
+		assert.Equal(t, "", config.DefaultField)
+		mockGodotenv.AssertExpectations(t)
+	})
+	t.Run("Test default with no equal to sign", func(t *testing.T) {
+		setup()
+		t.Cleanup(resetCache)
+		type DefaultConfig struct {
+			DefaultField string `env:"DEFAULT_FIELD,default"`
+		}
+		var config DefaultConfig
+		err := LoadEnv(&config)
+		assert.NoError(t, err)
+		assert.Equal(t, "", config.DefaultField)
+		mockGodotenv.AssertExpectations(t)
+	})
+	t.Run("Test with default env var set to empty string with quotes and spaces", func(t *testing.T) {
+		setup()
+		t.Cleanup(resetCache)
+		type DefaultConfig struct {
+			DefaultField string `env:"DEFAULT_FIELD,default='  '"`
+		}
+		var config DefaultConfig
+		err := LoadEnv(&config)
+		assert.NoError(t, err)
+		assert.Equal(t, "", config.DefaultField)
+		mockGodotenv.AssertExpectations(t)
+	})
+	t.Run("Test with both default and required env var", func(t *testing.T) {
+		setup()
+		t.Cleanup(resetCache)
+		type DefaultRequiredConfig struct {
+			DefaultField string `env:"DEFAULT_FIELD,default=default_value,required"`
+		}
+		var config DefaultRequiredConfig
+		err := LoadEnv(&config)
+		assert.NoError(t, err)
+		assert.Equal(t, "default_value", config.DefaultField)
+		mockGodotenv.AssertExpectations(t)
+	})
+	t.Run("Test with both default and required env var set to empty", func(t *testing.T) {
+		setup()
+		t.Cleanup(resetCache)
+		type DefaultRequiredConfig struct {
+			DefaultField string `env:"DEFAULT_FIELD,default=,required"`
+		}
+		t.Setenv("DEFAULT_FIELD", "default_value")
+		var config DefaultRequiredConfig
+		err := LoadEnv(&config)
+		assert.NoError(t, err)
+		assert.Equal(t, "default_value", config.DefaultField)
+		mockGodotenv.AssertExpectations(t)
+	})
+	t.Run("Test with both default and required env var set to empty string", func(t *testing.T) {
+		setup()
+		t.Cleanup(resetCache)
+		type DefaultRequiredConfig struct {
+			DefaultField string `env:"DEFAULT_FIELD,default=\"\",required"`
+		}
+		var config DefaultRequiredConfig
+		err := LoadEnv(&config)
+		assert.Error(t, err)
+		assert.Equal(t, "required environment variable DEFAULT_FIELD not found", err.Error())
+		assert.Equal(t, "", config.DefaultField)
+		mockGodotenv.AssertExpectations(t)
+	})
+	t.Run("Test with both default and required env var set to empty string with quotes", func(t *testing.T) {
+		setup()
+		t.Cleanup(resetCache)
+		type DefaultRequiredConfig struct {
+			DefaultField string `env:"DEFAULT_FIELD,default='',required"`
+		}
+		var config DefaultRequiredConfig
+		err := LoadEnv(&config)
+		assert.Error(t, err)
+		assert.Equal(t, "required environment variable DEFAULT_FIELD not found", err.Error())
+		assert.Equal(t, "", config.DefaultField)
+		mockGodotenv.AssertExpectations(t)
+	})
+	t.Run("Test with both default and required env var set to empty string with quotes and spaces", func(t *testing.T) {
+		setup()
+		t.Cleanup(resetCache)
+		type DefaultRequiredConfig struct {
+			DefaultField string `env:"DEFAULT_FIELD,default='  ',required"`
+		}
+		var config DefaultRequiredConfig
+		err := LoadEnv(&config)
+		assert.Error(t, err)
+		assert.Equal(t, "required environment variable DEFAULT_FIELD not found", err.Error())
+		assert.Equal(t, "", config.DefaultField)
 		mockGodotenv.AssertExpectations(t)
 	})
 }

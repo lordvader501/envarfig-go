@@ -80,6 +80,161 @@ if err != nil {
 fmt.Printf("Host: %s, Port: %d\n", config.Host, config.Port)
 ```
 
+### Supported Data Types
+
+`envarfig-go` supports a wide range of data types for environment variable parsing. Below are examples for each supported type.
+
+#### String
+
+```go
+type Config struct {
+    Host string `env:"HOST"`
+}
+```
+
+#### Integer
+
+```go
+// all int type(int8, int16....)
+type Config struct {
+    Port int `env:"PORT"`
+}
+```
+
+#### Float
+
+```go
+// float32 and float64
+type Config struct {
+    Threshold float64 `env:"THRESHOLD"`
+}
+```
+
+#### Boolean
+
+```go
+type Config struct {
+    Debug bool `env:"DEBUG"`
+}
+```
+
+#### Complex Numbers
+
+```go
+// complex64 and complex128
+type Config struct {
+    ComplexVal complex128 `env:"COMPLEX_VAL, default='1+3i'"`
+}
+```
+
+#### Arrays
+
+You can use arrays with a fixed size. Use the `delimiter` tag to specify a custom delimiter.
+
+```go
+//default delimiter is ','
+type Config struct {
+    Ports [2]int `env:"PORTS,delimiter=';'"`
+}
+```
+
+Environment Variable Example:
+
+```
+PORTS=8080;9090
+```
+
+#### Slices
+
+Slices are supported for dynamic-length lists. Use the `delimiter` tag to specify a custom delimiter.
+
+```go
+type Config struct {
+    Ports []int `env:"PORTS,delimiter=';'"`
+}
+```
+
+Environment Variable Example:
+
+```
+PORTS=8080;9090;10010
+```
+
+#### Maps
+
+Maps are supported with key-value pairs. Use the `delimiter` tag to specify a custom delimiter.
+
+```go
+type Config struct {
+    Settings map[string]string `env:"SETTINGS,delimiter=';'"`
+}
+```
+
+Environment Variable Example:
+
+```
+SETTINGS=key1:value1;key2:value2
+```
+
+#### Any (Interface{})
+
+The `any` type can be used to store any value as a string.
+
+```go
+type Config struct {
+    Value any `env:"VALUE"`
+}
+```
+
+#### Example with Multiple Types
+
+```go
+type Config struct {
+    Host       string            `env:"HOST"`
+    Port       int               `env:"PORT"`
+    Threshold  float64           `env:"THRESHOLD"`
+    Debug      bool              `env:"DEBUG"`
+    ComplexVal complex128        `env:"COMPLEX_VAL"`
+    Ports      []int             `env:"PORTS,delimiter=';'"`
+    Settings   map[string]string `env:"SETTINGS,delimiter=';'"`
+    Value      any               `env:"VALUE"`
+}
+```
+
+Environment Variable Example:
+
+```
+HOST=localhost
+PORT=8080
+THRESHOLD=0.75
+DEBUG=true
+COMPLEX_VAL=1+2i
+PORTS=8080;9090;10010
+SETTINGS=key1:value1;key2:value2
+VALUE=dynamic_value
+```
+
+### Handling Unsupported Field Types
+
+`envarfig-go` does not support certain field types, such as `struct` or other custom types, for environment variable parsing. If you attempt to use unsupported types, the library will return an error indicating the unsupported type.
+
+#### Example
+
+```go
+type Config struct {
+    UnsupportedField struct{} `env:"UNSUPPORTED_FIELD"`
+}
+
+var config Config
+err := envarfig.LoadEnv(&config)
+if err != nil {
+    fmt.Println("Error:", err)
+    // Output: Error: unsupported field type: struct
+}
+```
+
+This ensures that you are aware of unsupported types during development and can handle them appropriately.
+
 ## API
 
 ### `LoadEnv`
@@ -96,6 +251,7 @@ func LoadEnv[T any](envConfig *T, options ...option) error
 - **`env`**: Specifies the environment variable name.
 - **`default`**: Specifies a default value if the environment variable is not set.
 - **`required`**: Marks the environment variable as required.
+- **`delimiter`**: Delimiter for arrays value seperatior(default = ',')
 
 Example:
 

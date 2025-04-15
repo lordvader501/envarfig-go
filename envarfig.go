@@ -1,24 +1,16 @@
 package envarfig
 
 import (
+	"reflect"
 	"sync"
 )
 
-// constants
-const (
-	// DefaultTagName is the default tag name for the env tag
-	defaultTagName = "env"
-)
-
-var once sync.Once
-var cachedConfig any // Stores the parsed config
+var cachedConfigs sync.Map // Map to store cached configurations
 
 /*
 args:
-  - config: a pointer to a struct
-  - useEnvFile: a boolean value to determine if the env file should be used(uses godotenv)
-  - rest prams:
-  - args[0]- envfile path: the name of the env var or list of paths
+  - envConfig: a pointer to a struct
+  - options: variadic options for configuration (e.g., env file paths, auto-load settings)
 
 returns:
   - error: an error if any
@@ -28,21 +20,35 @@ func LoadEnv[T any](envConfig *T, options ...option) error {
 		return errNilConfig
 	}
 
-	var err error
+	// Get the type of the struct to use as a cache key
+	structType := reflect.TypeOf(envConfig).Elem()
 
+	// Check if the struct is already cached
+	if cachedConfig, ok := cachedConfigs.Load(structType); ok {
+		*envConfig = cachedConfig.(T) // Load from cache
+		return nil
+	}
+
+	var err error
+	var once sync.Once
+
+	// Ensure the struct is only loaded once
 	once.Do(func() {
-		// load the settings
+		// Load the settings
 		settings := loadSettings(options...)
-		// load the env file
+
+		// Load the env file
 		err = loadEnvFile(settings.AutoLoadEnv, settings.EnvFiles)
 		if err != nil {
 			err = errInvalidEnvPathArgs
 			return
 		}
-		// parse the env var
+
+		// Parse the environment variables into the struct
 		err = parseEnvVar(envConfig)
 		if err == nil {
-			cachedConfig = *envConfig
+			// Cache the struct configuration
+			cachedConfigs.Store(structType, *envConfig)
 		}
 	})
 
@@ -50,6 +56,5 @@ func LoadEnv[T any](envConfig *T, options ...option) error {
 		return err
 	}
 
-	*envConfig = cachedConfig.(T)
 	return nil
 }

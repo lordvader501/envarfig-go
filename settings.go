@@ -2,6 +2,7 @@ package envarfig
 
 type settings struct {
 	AutoLoadEnv bool
+	CacheConfig bool
 	EnvFiles    []string
 }
 
@@ -11,6 +12,7 @@ func loadSettings(opts ...option) *settings {
 	setting := &settings{
 		AutoLoadEnv: true,
 		EnvFiles:    nil,
+		CacheConfig: true,
 	}
 	for _, opt := range opts {
 		opt(setting)
@@ -29,5 +31,12 @@ func WithEnvFiles(envFiles ...string) option {
 func WithAutoLoadEnv(AutoLoadEnv bool) option {
 	return func(s *settings) {
 		s.AutoLoadEnv = AutoLoadEnv
+	}
+}
+
+// WithCacheConfig sets the cache config option
+func WithCacheConfig(CacheConfig bool) option {
+	return func(s *settings) {
+		s.CacheConfig = CacheConfig
 	}
 }

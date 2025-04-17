@@ -9,18 +9,17 @@ import (
 )
 
 type Config struct {
-	PORT map[string]any `env:"PORT, default='{ hello : 123, hi : a234, foo : 234 }', required=false"`
-	HOST string         `env:"HOST, default=localhost:4000, required"`
+	MapValues   map[string]any `env:"PORT, default='{ hello : 123, hi : a234, foo : 234 }', required=false"`
+	ArrayValues [3]string      `env:"HOST, default='apple;banana;orange', delimiter=';', required"`
+	//default delimeter is `,` for array/slices values
+	SliceValues []string `env:"HOST, default='apple,banana,orange', required"`
 }
 
 var config Config
 
 func main() {
-	// os.Setenv("PORT", "8080,8090")
-	err := envarfig.LoadEnv(&config, envarfig.WithAutoLoadEnv(false))
-	if err != nil {
+	if err := envarfig.LoadEnv(&config, envarfig.WithAutoLoadEnv(false)); err != nil {
 		fmt.Println(err)
 	}
 	fmt.Println(config)
-	fmt.Printf("%v\n", map[any]any{complex64(1 + 2i): complex64(2 + 3i)})
 }

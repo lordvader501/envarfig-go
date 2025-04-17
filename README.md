@@ -2,6 +2,8 @@
 
 `envarfig-go` is a lightweight Go library for managing environment variables with ease. It provides a simple way to load and parse environment variables into Go structs, supporting features like default values, type conversion, and more.
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/lordvader501/envarfig-go.svg)](https://pkg.go.dev/github.com/lordvader501/envarfig-go)
+
 ## Features
 
 - Load environment variables into Go structs.
@@ -63,12 +65,20 @@ You can disable automatic `.env` file loading:
 err := envarfig.LoadEnv(&config, envarfig.WithAutoLoadEnv(false))
 ```
 
+You can also enable or disable caching of configurations:
+
+```go
+err := envarfig.LoadEnv(&config, envarfig.WithCacheConfig(false))
+```
+
+By default, caching is enabled. Disabling caching ensures that the configuration is reloaded every time `LoadEnv` is called.
+
 ### Advanced Example with Default and Required Fields
 
 ```go
 type Config struct {
-    Host string `env:"HOST,default=localhost,required"`
-    Port int    `env:"PORT,default=8080"`
+    Host string `env:"HOST,default='localhost',required"`
+    Port int    `env:"PORT,default='8080'"`
 }
 
 var config Config
@@ -257,7 +267,7 @@ Example:
 
 ```go
 type Config struct {
-    Host string `env:"HOST,default=localhost,required"`
+    Host string `env:"HOST,default='localhost',required"`
 }
 ```
 

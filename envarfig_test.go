@@ -159,6 +159,28 @@ func TestLoadEnv(t *testing.T) {
 		assert.Equal(t, 8080, config2.Port)
 	})
 
+	t.Run("Test with cacheing off", func(t *testing.T) {
+		setup()
+		t.Cleanup(resetCache)
+		type Config struct {
+			Host string `env:"HOST"`
+			Port int    `env:"PORT"`
+		}
+		var config1 Config
+		var config2 Config
+		t.Setenv("HOST", "localhost")
+		t.Setenv("PORT", "8080")
+		err1 := LoadEnv(&config1, WithCacheConfig(false))
+		t.Setenv("PORT", "8081")
+		err2 := LoadEnv(&config2, WithCacheConfig(false))
+		assert.NoError(t, err1)
+		assert.NoError(t, err2)
+		assert.Equal(t, "localhost", config1.Host)
+		assert.Equal(t, 8080, config1.Port)
+		assert.Equal(t, "localhost", config2.Host)
+		assert.Equal(t, 8081, config2.Port)
+	})
+
 	t.Run("Test with invalid env variable with incorrect datatype", func(t *testing.T) {
 		setup()
 		t.Cleanup(resetCache)

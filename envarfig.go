@@ -20,13 +20,18 @@ func LoadEnv[T any](envConfig *T, options ...option) error {
 		return errNilConfig
 	}
 
+	// Load the settings
+	settings := loadSettings(options...)
+
 	// Get the type of the struct to use as a cache key
 	structType := reflect.TypeOf(envConfig).Elem()
 
-	// Check if the struct is already cached
-	if cachedConfig, ok := cachedConfigs.Load(structType); ok {
-		*envConfig = cachedConfig.(T) // Load from cache
-		return nil
+	// Check if caching is enabled and the struct is already cached
+	if settings.CacheConfig {
+		if cachedConfig, ok := cachedConfigs.Load(structType); ok {
+			*envConfig = cachedConfig.(T) // Load from cache
+			return nil
+		}
 	}
 
 	var err error
@@ -34,9 +39,6 @@ func LoadEnv[T any](envConfig *T, options ...option) error {
 
 	// Ensure the struct is only loaded once
 	once.Do(func() {
-		// Load the settings
-		settings := loadSettings(options...)
-
 		// Load the env file
 		err = loadEnvFile(settings.AutoLoadEnv, settings.EnvFiles)
 		if err != nil {
@@ -46,7 +48,7 @@ func LoadEnv[T any](envConfig *T, options ...option) error {
 
 		// Parse the environment variables into the struct
 		err = parseEnvVar(envConfig)
-		if err == nil {
+		if err == nil && settings.CacheConfig {
 			// Cache the struct configuration
 			cachedConfigs.Store(structType, *envConfig)
 		}

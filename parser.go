@@ -19,6 +19,7 @@ type tagProperties struct {
 	DefaultValue string
 	Delimiter    string
 	Required     bool
+	isString     bool
 }
 
 func (tp *tagProperties) setEnvName(envName string) {
@@ -32,6 +33,9 @@ func (tp *tagProperties) setRequired(required bool) {
 }
 func (tp *tagProperties) setDelimiter(s string) {
 	tp.Delimiter = s
+}
+func (tp *tagProperties) setIsString() {
+	tp.isString = true
 }
 
 /*
@@ -98,6 +102,7 @@ func parseTagAndTagValues(tag string) tagProperties {
 			checkAndSetTagPropRequired(prop, &tagProp)
 			checkAndSetTagPropDefaultValue(prop, &tagProp)
 			checkAndSetTagPropDelimiterForSliceOrArray(prop, &tagProp)
+			cehckAndSetIsStringForByteOrRuneArray(prop, &tagProp)
 		}
 	}
 
@@ -135,11 +140,11 @@ func setEnvVarValues(fieldValue reflect.Value, tagProp tagProperties, envValue s
 		}
 		fieldValue.SetComplex(complexValue)
 	case reflect.Slice, reflect.Array:
-		if err := setEnvVarSliceOrArrayValues(fieldValue, tagProp.EnvName, envValue, tagProp.Delimiter); err != nil {
+		if err := setEnvVarSliceOrArrayValues(fieldValue, tagProp.EnvName, envValue, tagProp); err != nil {
 			return err
 		}
 	case reflect.Map:
-		if err := setEnvVarMapValues(fieldValue, tagProp.EnvName, envValue, tagProp.Delimiter); err != nil {
+		if err := setEnvVarMapValues(fieldValue, tagProp.EnvName, envValue, tagProp); err != nil {
 			return err
 		}
 	case reflect.Bool:
@@ -158,8 +163,9 @@ func setEnvVarValues(fieldValue reflect.Value, tagProp tagProperties, envValue s
 	return nil
 }
 
-func setEnvVarSliceOrArrayValues(fieldValue reflect.Value, envName string, envValue string, delimiter string) error {
-	envValSliceOrArray := strings.Split(envValue, delimiter)
+func setEnvVarSliceOrArrayValues(fieldValue reflect.Value, envName string, envValue string, tagProp tagProperties) error {
+	envValSliceOrArray := strings.Split(envValue, tagProp.Delimiter)
+	isString := tagProp.isString
 
 	// Determine the type: slice or array
 	kind := fieldValue.Kind()
@@ -186,6 +192,10 @@ func setEnvVarSliceOrArrayValues(fieldValue reflect.Value, envName string, envVa
 			newValue.Index(i).SetString(strVal)
 
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			if isString && elemType.Kind() == reflect.Int32 {
+				fieldValue.Set(reflect.ValueOf([]rune(envValue)))
+				return nil
+			}
 			intValue, err := strconv.ParseInt(strVal, 10, elemType.Bits())
 			if err != nil {
 				return fmt.Errorf("failed to convert %s to int: %w", envName, err)
@@ -193,6 +203,10 @@ func setEnvVarSliceOrArrayValues(fieldValue reflect.Value, envName string, envVa
 			newValue.Index(i).SetInt(intValue)
 
 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			if isString && elemType.Kind() == reflect.Uint8 {
+				fieldValue.SetBytes([]byte(envValue))
+				return nil
+			}
 			uintValue, err := strconv.ParseUint(strVal, 10, elemType.Bits())
 			if err != nil {
 				return fmt.Errorf("failed to convert %s to uint: %w", envName, err)
@@ -232,9 +246,9 @@ func setEnvVarSliceOrArrayValues(fieldValue reflect.Value, envName string, envVa
 	return nil
 }
 
-func setEnvVarMapValues(fieldValue reflect.Value, envName string, envValue string, delimiter string) error {
+func setEnvVarMapValues(fieldValue reflect.Value, envName string, envValue string, tagProp tagProperties) error {
 	// set the field value to the env var value
-	mapValues := strings.Split(envValue, delimiter)
+	mapValues := strings.Split(envValue, tagProp.Delimiter)
 	lenMapValues := len(mapValues)
 	//replace starting braces and ending braces
 	mapValues[0] = strings.ReplaceAll(mapValues[0], "{", "")
@@ -399,6 +413,25 @@ func checkAndSetTagPropDelimiterForSliceOrArray(property string, tagProp *tagPro
 			property = strings.TrimSpace(property[1 : valLen-1])
 			tagProp.setDelimiter(property)
 		}
+	}
+}
+
+func cehckAndSetIsStringForByteOrRuneArray(property string, tagProp *tagProperties) {
+	if !strings.Contains(strings.ToLower(property), "isstring") {
+		return
+	}
+	// check if the required field is set to true or false
+	if strings.Contains(property, "=") {
+		property = strings.Split(property, "=")[1]
+		property = strings.TrimSpace(property)
+		property = strings.ToLower(property)
+	}
+	if strings.Contains(property, "true") {
+		tagProp.setIsString()
+	} else if strings.Contains(property, "false") {
+		return
+	} else {
+		tagProp.setIsString()
 	}
 }
 

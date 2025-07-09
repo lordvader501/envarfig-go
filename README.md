@@ -291,6 +291,13 @@ go test -tags=unit ./... -v
 go test -tags=integration ./... -v
 ```
 
+## Running all with cover Profile
+
+```bash
+go test ./... -race -tags="unit integration" -v -coverprofile="coverage.out"
+go tool cover -html "coverage.out"
+```
+
 ## Contributing
 
 Contributions are welcome! Feel free to open issues or submit pull requests.

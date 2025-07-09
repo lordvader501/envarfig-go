@@ -449,6 +449,8 @@ func TestLoadEnv(t *testing.T) {
 			Boolval    []bool      `env:"BOOLVAL"`
 			Complexval []complex64 `env:"COMPLEXVAL"`
 			AnyVal     []any       `env:"ANYVAL"`
+			KeyBytes   []byte      `env:"KEY_BYTES,default='hello',isstring=true"`
+			KeyRunes   []rune      `env:"KEY_RUNES,default='हेलो',isstring"`
 		}
 		t.Setenv("STRVAL", "hello,world")
 		t.Setenv("INTVAL", "1,2")
@@ -467,6 +469,8 @@ func TestLoadEnv(t *testing.T) {
 		assert.Equal(t, []bool{true, false}, arrayConfig.Boolval)
 		assert.Equal(t, []complex64{1 + 2i, 3 + 4i}, arrayConfig.Complexval)
 		assert.Equal(t, []any{"any_value1", "any_value2"}, arrayConfig.AnyVal)
+		assert.Equal(t, "hello", string(arrayConfig.KeyBytes))
+		assert.Equal(t, "हेलो", string(arrayConfig.KeyRunes))
 		mockGodotenv.AssertExpectations(t)
 	})
 	t.Run("Test array data types for errors", func(t *testing.T) {
@@ -529,11 +533,11 @@ func TestLoadEnv(t *testing.T) {
 		assert.Error(t, err7)
 		assert.NoError(t, err8)
 		assert.Equal(t, "env var STRVAL has 3 values, but array expects 2", err1.Error())
-		assert.Equal(t, fmt.Sprintf("failed to convert INTVAL to int: strconv.ParseInt: parsing \"2a\": invalid syntax"), err2.Error())
-		assert.Equal(t, fmt.Sprintf("failed to convert UINTVAL to uint: strconv.ParseUint: parsing \"2b\": invalid syntax"), err3.Error())
-		assert.Equal(t, fmt.Sprintf("failed to convert FLOATVAL to float: strconv.ParseFloat: parsing \"2.2aa\": invalid syntax"), err4.Error())
-		assert.Equal(t, fmt.Sprintf("error parsing env var BOOLVAL: strconv.ParseBool: parsing \"falsea\": invalid syntax"), err5.Error())
-		assert.Equal(t, fmt.Sprintf("failed to convert COMPLEXVAL to complex: strconv.ParseComplex: parsing \"3+4\": invalid syntax"), err6.Error())
+		assert.Equal(t, "failed to convert INTVAL to int: strconv.ParseInt: parsing \"2a\": invalid syntax", err2.Error())
+		assert.Equal(t, "failed to convert UINTVAL to uint: strconv.ParseUint: parsing \"2b\": invalid syntax", err3.Error())
+		assert.Equal(t, "failed to convert FLOATVAL to float: strconv.ParseFloat: parsing \"2.2aa\": invalid syntax", err4.Error())
+		assert.Equal(t, "error parsing env var BOOLVAL: strconv.ParseBool: parsing \"falsea\": invalid syntax", err5.Error())
+		assert.Equal(t, "failed to convert COMPLEXVAL to complex: strconv.ParseComplex: parsing \"3+4\": invalid syntax", err6.Error())
 		assert.Equal(t, "unsupported slice/array element type: struct", err7.Error())
 		mockGodotenv.AssertExpectations(t)
 	})
@@ -564,6 +568,9 @@ func TestLoadEnv(t *testing.T) {
 		type ArrayInvalidDelimiterConfig struct {
 			Strval []string `env:"STRVAL, delimiter"`
 		}
+		type SliceInvalidIsStringFalse struct {
+			KeyBytes []byte `env:"KEY_BYTES,default='hello',isstring=false"`
+		}
 
 		var arrayInvalidLengthConfig ArrayInvalidLengthConfig
 		var arrayInvalidIntConfig ArrayInvalidIntConfig
@@ -573,6 +580,7 @@ func TestLoadEnv(t *testing.T) {
 		var arrayInvalidComplexConfig ArrayInvalidComplexConfig
 		var arrayInvalidNotSupportedConfig ArrayInvalidNotSupportedConfig
 		var arrayInvalidDelimiterConfig ArrayInvalidDelimiterConfig
+		var sliceInvalidIsStringFalseConfig SliceInvalidIsStringFalse
 		t.Setenv("STRVAL", "hello,world,foo")
 		t.Setenv("INTVAL", "1,2a")
 		t.Setenv("UINTVAL", "1,2b")
@@ -588,6 +596,7 @@ func TestLoadEnv(t *testing.T) {
 		err6 := LoadEnv(&arrayInvalidComplexConfig)
 		err7 := LoadEnv(&arrayInvalidNotSupportedConfig)
 		err8 := LoadEnv(&arrayInvalidDelimiterConfig)
+		err9 := LoadEnv(&sliceInvalidIsStringFalseConfig)
 		assert.NoError(t, err1)
 		assert.Error(t, err2)
 		assert.Error(t, err3)
@@ -596,12 +605,14 @@ func TestLoadEnv(t *testing.T) {
 		assert.Error(t, err6)
 		assert.Error(t, err7)
 		assert.NoError(t, err8)
-		assert.Equal(t, fmt.Sprintf("failed to convert INTVAL to int: strconv.ParseInt: parsing \"2a\": invalid syntax"), err2.Error())
-		assert.Equal(t, fmt.Sprintf("failed to convert UINTVAL to uint: strconv.ParseUint: parsing \"2b\": invalid syntax"), err3.Error())
-		assert.Equal(t, fmt.Sprintf("failed to convert FLOATVAL to float: strconv.ParseFloat: parsing \"2.2aa\": invalid syntax"), err4.Error())
-		assert.Equal(t, fmt.Sprintf("error parsing env var BOOLVAL: strconv.ParseBool: parsing \"falsea\": invalid syntax"), err5.Error())
-		assert.Equal(t, fmt.Sprintf("failed to convert COMPLEXVAL to complex: strconv.ParseComplex: parsing \"3+4\": invalid syntax"), err6.Error())
+		assert.Error(t, err9)
+		assert.Equal(t, "failed to convert INTVAL to int: strconv.ParseInt: parsing \"2a\": invalid syntax", err2.Error())
+		assert.Equal(t, "failed to convert UINTVAL to uint: strconv.ParseUint: parsing \"2b\": invalid syntax", err3.Error())
+		assert.Equal(t, "failed to convert FLOATVAL to float: strconv.ParseFloat: parsing \"2.2aa\": invalid syntax", err4.Error())
+		assert.Equal(t, "error parsing env var BOOLVAL: strconv.ParseBool: parsing \"falsea\": invalid syntax", err5.Error())
+		assert.Equal(t, "failed to convert COMPLEXVAL to complex: strconv.ParseComplex: parsing \"3+4\": invalid syntax", err6.Error())
 		assert.Equal(t, "unsupported slice/array element type: struct", err7.Error())
+		assert.Equal(t, "failed to convert KEY_BYTES to uint: strconv.ParseUint: parsing \"hello\": invalid syntax", err9.Error())
 		mockGodotenv.AssertExpectations(t)
 	})
 	t.Run("Test map data types", func(t *testing.T) {
@@ -697,11 +708,11 @@ func TestLoadEnv(t *testing.T) {
 		assert.Error(t, err7)
 		assert.Error(t, err8)
 		assert.Equal(t, "unsupported map value type: struct", err1.Error())
-		assert.Equal(t, fmt.Sprintf("failed to convert map value 2a to int: strconv.ParseInt: parsing \"2a\": invalid syntax"), err2.Error())
-		assert.Equal(t, fmt.Sprintf("failed to convert map value 2a to uint: strconv.ParseUint: parsing \"2a\": invalid syntax"), err3.Error())
-		assert.Equal(t, fmt.Sprintf("failed to convert map value 2.2a to float: strconv.ParseFloat: parsing \"2.2a\": invalid syntax"), err4.Error())
-		assert.Equal(t, fmt.Sprintf("failed to convert map value falsea to bool: strconv.ParseBool: parsing \"falsea\": invalid syntax"), err5.Error())
-		assert.Equal(t, fmt.Sprintf("failed to convert map value (3+4) to complex: strconv.ParseComplex: parsing \"(3+4)\": invalid syntax"), err6.Error())
+		assert.Equal(t, "failed to convert map value 2a to int: strconv.ParseInt: parsing \"2a\": invalid syntax", err2.Error())
+		assert.Equal(t, "failed to convert map value 2a to uint: strconv.ParseUint: parsing \"2a\": invalid syntax", err3.Error())
+		assert.Equal(t, "failed to convert map value 2.2a to float: strconv.ParseFloat: parsing \"2.2a\": invalid syntax", err4.Error())
+		assert.Equal(t, "failed to convert map value falsea to bool: strconv.ParseBool: parsing \"falsea\": invalid syntax", err5.Error())
+		assert.Equal(t, "failed to convert map value (3+4) to complex: strconv.ParseComplex: parsing \"(3+4)\": invalid syntax", err6.Error())
 		assert.Equal(t, "unsupported map value type: struct", err7.Error())
 		assert.Equal(t, "invalid map entry for INVALIDVAL: helloworld", err8.Error())
 		mockGodotenv.AssertExpectations(t)
@@ -752,11 +763,11 @@ func TestLoadEnv(t *testing.T) {
 		assert.Error(t, err4)
 		assert.Error(t, err5)
 		assert.Error(t, err6)
-		assert.Equal(t, fmt.Sprintf("failed to convert map key 1a to int: strconv.ParseInt: parsing \"1a\": invalid syntax"), err1.Error())
-		assert.Equal(t, fmt.Sprintf("failed to convert map key 1a to uint: strconv.ParseUint: parsing \"1a\": invalid syntax"), err2.Error())
-		assert.Equal(t, fmt.Sprintf("failed to convert map key 1.1a to float: strconv.ParseFloat: parsing \"1.1a\": invalid syntax"), err3.Error())
-		assert.Equal(t, fmt.Sprintf("failed to convert map key truea to bool: strconv.ParseBool: parsing \"truea\": invalid syntax"), err4.Error())
-		assert.Equal(t, fmt.Sprintf("failed to convert map key (1+2) to complex: strconv.ParseComplex: parsing \"(1+2)\": invalid syntax"), err5.Error())
+		assert.Equal(t, "failed to convert map key 1a to int: strconv.ParseInt: parsing \"1a\": invalid syntax", err1.Error())
+		assert.Equal(t, "failed to convert map key 1a to uint: strconv.ParseUint: parsing \"1a\": invalid syntax", err2.Error())
+		assert.Equal(t, "failed to convert map key 1.1a to float: strconv.ParseFloat: parsing \"1.1a\": invalid syntax", err3.Error())
+		assert.Equal(t, "failed to convert map key truea to bool: strconv.ParseBool: parsing \"truea\": invalid syntax", err4.Error())
+		assert.Equal(t, "failed to convert map key (1+2) to complex: strconv.ParseComplex: parsing \"(1+2)\": invalid syntax", err5.Error())
 		assert.Equal(t, "unsupported map key type: struct", err6.Error())
 		mockGodotenv.AssertExpectations(t)
 	})
